@@ -1,6 +1,6 @@
 <template>
-  <div class="forum-detail">
-    <el-page-header @back="goBack" content="帖子详情"></el-page-header>
+  <div class="learning-detail">
+    <el-page-header @back="goBack" content="学习帖子详情"></el-page-header>
     <el-card class="detail-card">
       <template #header>
         <div class="flex justify-between items-center">
@@ -13,6 +13,7 @@
           <span>发布时间: {{ post.createTime }}</span>
           <span>浏览量: {{ post.views }}</span>
         </div>
+        <img :src="post.imageUrl" alt="封面图片" class="post-image">
         <div class="post-content" v-html="post.content"></div>
       </div>
     </el-card>
@@ -23,7 +24,7 @@
 import { ref, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus'
-import { forumApi } from '../mock/forumData.js';
+import { learningApi } from '../mock/learningData.js';
 
 const route = useRoute();
 const router = useRouter();
@@ -34,7 +35,8 @@ const post = ref({
   content: '',
   author: '',
   createTime: '',
-  views: 0
+  views: 0,
+  imageUrl: ''
 });
 
 const goBack = () => {
@@ -45,15 +47,15 @@ const goBack = () => {
 const loadPostDetail = async () => {
   try {
     const postId = parseInt(route.params.id);
-    const postData = await forumApi.getPostById(postId);
+    const postData = await learningApi.getPostById(postId);
     
     if (postData) {
       post.value = { ...postData };
       // 更新浏览量
-      await forumApi.updateViews(postId, postData.views + 1);
+      await learningApi.updateViews(postId, postData.views + 1);
       post.value.views = postData.views + 1;
     } else {
-      router.push('/forum');
+      router.push('/learning');
       ElMessage({
         message: '帖子不存在',
         type: 'warning',
@@ -67,7 +69,7 @@ const loadPostDetail = async () => {
       type: 'error',
       duration: 2000
     });
-    router.push('/forum');
+    router.push('/learning');
   }
 };
 
@@ -81,7 +83,7 @@ watch(() => route.params, () => {
 </script>
 
 <style scoped>
-.forum-detail {
+.learning-detail {
   width: 100%;
   max-width: 1200px;
   margin: 0 auto;
@@ -95,6 +97,13 @@ watch(() => route.params, () => {
   margin: 10px 0;
   color: #606266;
   font-size: 14px;
+}
+
+.post-image {
+  width: 100%;
+  max-height: 400px;
+  object-fit: cover;
+  margin-bottom: 20px;
 }
 
 .post-content {

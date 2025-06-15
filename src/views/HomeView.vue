@@ -39,8 +39,8 @@ const introCards = ref([
     imageUrl: 'https://picsum.photos/400/200?random=10'
   },
   { 
-    title: '精彩活动', 
-    description: '参与我们的线上线下活动',
+    title: '学习摄影', 
+    description: '浏览各类精美摄影图片',
     imageUrl: 'https://picsum.photos/400/200?random=11'
   },
   { 

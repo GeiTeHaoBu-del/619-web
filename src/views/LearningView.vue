@@ -12,7 +12,7 @@
             <el-button @click="searchPost">搜索</el-button>
           </template>
         </el-input>
-
+        <el-button type="primary" @click="openCreatePostDialog">发布新帖</el-button>
       </el-col>
     </el-row>
     <el-row class="learning-content" :gutter="20">
@@ -30,7 +30,7 @@
             <el-button 
               type="primary" 
               size="small" 
-              @click="viewPost(post)">
+              @click="goToPostDetail(post)">
               查看详情
             </el-button>
           </div>
@@ -46,46 +46,68 @@
       layout="total, sizes, prev, pager, next, jumper"
       :total="posts.length">
     </el-pagination>
+
+    <!-- 发布帖子对话框 -->
+    <el-dialog 
+      v-model="showCreateDialog" 
+      title="发布新帖"
+      :before-close="handleClose">
+      <el-form :model="newPost" :rules="postRules" ref="postFormRef" label-width="80px">
+        <el-form-item label="标题" prop="title">
+          <el-input v-model="newPost.title" placeholder="请输入帖子标题" maxlength="100" show-word-limit />
+        </el-form-item>
+        <el-form-item label="内容" prop="content">
+          <el-input 
+            type="textarea" 
+            v-model="newPost.content" 
+            rows="8" 
+            placeholder="请输入帖子内容"
+            maxlength="5000" 
+            show-word-limit />
+        </el-form-item>
+        <el-form-item label="封面图片" prop="imageUrl">
+          <el-upload
+            class="avatar-uploader"
+            action="https://jsonplaceholder.typicode.com/posts/"
+            :show-file-list="false"
+            :on-success="handleImageUploadSuccess"
+            :before-upload="beforeImageUpload">
+            <img v-if="newPost.imageUrl" :src="newPost.imageUrl" class="avatar">
+            <i v-else class="el-icon-plus avatar-uploader-icon"></i>
+          </el-upload>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button type="primary" @click="submitPost">发布</el-button>
+          <el-button @click="handleCloseDialog">取消</el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
-
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import Navbar from '../components/Navbar.vue'
+import { learningApi } from '../mock/learningData.js'
+import { ElMessage } from 'element-plus'
+import { useRouter } from 'vue-router'
 
+const router = useRouter()
 const searchText = ref('')
 const currentUser = 'test_user'
-const posts = ref([
-  {
-    id: 1,
-    title: '摄影构图技巧分享',
-    content: '摄影构图是摄影中非常重要的一环，今天给大家分享一些构图技巧...',
-    author: 'test_user',
-    createTime: '2025-06-01 10:00',
-    views: 120,
-    imageUrl: 'https://picsum.photos/400/400?random=1'
-  },
-  {
-    id: 2,
-    title: '如何选择合适的相机镜头',
-    content: '相机镜头的选择对于摄影效果有着很大的影响，下面为大家介绍如何选择合适的镜头...',
-    author: 'user2',
-    createTime: '2025-06-02 14:30',
-    views: 89,
-    imageUrl: 'https://picsum.photos/400/400?random=2'
-  }
-])
-
+const originalPosts = ref([])
+const posts = ref([])
 const currentPage = ref(1)
 const pageSize = ref(8)
-const totalPosts = ref(posts.value.length)
+const totalPosts = ref(0)
 
 // 对话框状态
 const showCreateDialog = ref(false)
 const showViewDialog = ref(false)
 
 // 表单数据
-const newPost = ref({
+const newPost = reactive({
   title: '',
   content: '',
   imageUrl: ''
@@ -99,6 +121,24 @@ const viewingPost = ref({
   createTime: '',
   views: 0,
   imageUrl: ''
+})
+
+const postFormRef = ref(null)
+const isSubmitting = ref(false)
+
+// 表单验证规则
+const postRules = reactive({
+  title: [
+    { required: true, message: '请输入帖子标题', trigger: 'blur' },
+    { min: 3, max: 100, message: '标题长度在3 - 100个字符', trigger: 'blur' }
+  ],
+  content: [
+    { required: true, message: '请输入帖子内容', trigger: 'blur' },
+    { min: 10, message: '内容至少10个字符', trigger: 'blur' }
+  ],
+  imageUrl: [
+    { required: true, message: '请上传封面图片', trigger: 'change' }
+  ]
 })
 
 // 计算属性：过滤和排序后的商品
@@ -135,18 +175,149 @@ const searchPost = () => {
 }
 
 // 查看帖子
-const viewPost = (post) => {
-  viewingPost.value = { ...post }
-  viewingPost.value.views += 1
-  
-  // 更新原帖子的浏览量
-  const index = posts.value.findIndex(p => p.id === post.id)
-  if (index !== -1) {
-    posts.value[index].views = viewingPost.value.views
+const goToPostDetail = async (post) => {
+  try {
+    await learningApi.updateViews(post.id, post.views + 1)
+    router.push(`/learning/detail/${post.id}`)
+  } catch (error) {
+    console.error('更新浏览量失败', error)
+    router.push(`/learning/detail/${post.id}`)
   }
-  
-  showViewDialog.value = true
 }
+
+// 打开创建帖子对话框
+const openCreatePostDialog = () => {
+  showCreateDialog.value = true
+}
+
+// 提交表单
+const submitPost = async () => {
+  if (isSubmitting.value) return
+  
+  try {
+    isSubmitting.value = true
+    
+    // 验证表单
+    await new Promise((resolve, reject) => {
+      postFormRef.value.validate((valid) => {
+        if (valid) {
+          resolve()
+        } else {
+          const firstError = document.querySelector('.el-form-item__error')
+          firstError?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          reject(new Error('表单验证失败'))
+        }
+      })
+    })
+    
+    // 准备提交数据
+    const postData = {
+      title: newPost.title,
+      content: newPost.content,
+      author: currentUser,
+      imageUrl: newPost.imageUrl
+    }
+    
+    // 提交到API
+    const createdPost = await learningApi.createPost(postData)
+    
+    // 更新本地数据
+    posts.value.unshift(createdPost)
+    originalPosts.value.unshift(createdPost)
+    totalPosts.value = posts.value.length
+    
+    // 关闭对话框
+    showCreateDialog.value = false
+    
+    // 显示成功提示
+    ElMessage({
+      message: '帖子发布成功！',
+      type: 'success',
+      duration: 2000
+    })
+    
+    // 跳转到新帖子
+    router.push(`/learning/detail/${createdPost.id}`)
+    
+    // 重置表单
+    resetForm()
+    
+  } catch (error) {
+    console.error('发布帖子出错:', error)
+    ElMessage({
+      message: error.message === '表单验证失败' ? '请检查表单输入' : '发布失败，请重试',
+      type: 'error',
+      duration: 3000
+    })
+  } finally {
+    isSubmitting.value = false
+  }
+}
+
+// 重置表单
+const resetForm = () => {
+  newPost.title = ''
+  newPost.content = ''
+  newPost.imageUrl = ''
+  postFormRef.value?.resetFields()
+}
+
+// 关闭对话框
+const handleClose = (done) => {
+  handleCloseDialog()
+  done()
+}
+
+const handleCloseDialog = () => {
+  showCreateDialog.value = false
+  resetForm()
+}
+
+// 图片上传处理
+const handleImageUploadSuccess = (res, file) => {
+  newPost.imageUrl = URL.createObjectURL(file.raw)
+}
+
+const beforeImageUpload = (file) => {
+  const isJPG = file.type === 'image/jpeg' || file.type === 'image/png'
+  if (!isJPG) {
+    ElMessage({
+      message: '上传封面图片只能是 JPG/PNG 格式!',
+      type: 'error',
+      duration: 3000
+    })
+  }
+  const isLt2M = file.size / 1024 / 1024 < 2
+  if (!isLt2M) {
+    ElMessage({
+      message: '上传封面图片大小不能超过 2MB!',
+      type: 'error',
+      duration: 3000
+    })
+  }
+  return isJPG && isLt2M
+}
+
+// 初始化加载帖子数据
+const fetchPosts = async () => {
+  try {
+    const data = await learningApi.getPosts()
+    originalPosts.value = data
+    posts.value = data
+    totalPosts.value = data.length
+  } catch (error) {
+    console.error('获取帖子列表失败', error)
+    ElMessage({
+      message: '加载帖子列表失败，请重试',
+      type: 'error',
+      duration: 3000
+    })
+  }
+}
+
+onMounted(() => {
+  fetchPosts()
+})
 </script>
 
 <style scoped>
@@ -209,5 +380,32 @@ const viewPost = (post) => {
   font-size: 14px;
   text-align: left;
   margin-bottom: 10px;
+}
+
+.avatar-uploader .el-upload {
+  border: 1px dashed #d9d9d9;
+  border-radius: 6px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.avatar-uploader .el-upload:hover {
+  border-color: #409EFF;
+}
+
+.avatar-uploader-icon {
+  font-size: 28px;
+  color: #8c939d;
+  width: 100px;
+  height: 100px;
+  line-height: 100px;
+  text-align: center;
+}
+
+.avatar {
+  width: 100px;
+  height: 100px;
+  display: block;
 }
 </style>

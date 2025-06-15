@@ -5,6 +5,7 @@ import MallView from '../views/MallView.vue';
 import LearningView from '../views/LearningView.vue';
 import ProfileView from '../views/ProfileView.vue';
 import ForumDetail from '../views/ForumDetail.vue';
+import LearningDetail from '../views/LearningDetail.vue';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -29,10 +30,15 @@ const router = createRouter({
       name: 'mall',
       component: MallView
     },
-        {
+    {
       path: '/learning',
       name: 'learning',
       component: LearningView
+    },
+    {
+      path: '/learning/detail/:id',
+      name: 'LearningDetail',
+      component: LearningDetail
     },
     {
       path: '/profile',
