@@ -140,7 +140,12 @@
 
 <script setup>
 import { ref, computed } from 'vue';
+import { useRouter } from 'vue-router';
+import { ElMessage, ElMessageBox } from 'element-plus';
+import { authApi } from '../mock/authData.js';
 import Navbar from '../components/Navbar.vue';
+
+const router = useRouter();
 
 const activeTab = ref('info');
 
@@ -355,12 +360,30 @@ const confirmReceipt = (order) => {
 }
 
 // 退出登录
-const logout = () => {
-  if (confirm('确定要退出登录吗？')) {
-    // 这里应该调用后端API处理退出逻辑
-    alert('已成功退出登录！')
-    // 模拟跳转到登录页
-    window.location.href = '#/login'
+const logout = async () => {
+  try {
+    await ElMessageBox.confirm('确定要退出当前账号吗？', '退出登录', {
+      confirmButtonText: '确定退出',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+    
+    // 调用退出登录API
+    await authApi.logout()
+    
+    // 清除本地存储的用户信息和token
+    localStorage.removeItem('token')
+    localStorage.removeItem('userInfo')
+    
+    ElMessage.success('退出登录成功')
+    
+    // 跳转到登录页面
+    router.push('/login')
+  } catch (error) {
+    // 用户取消操作或其他错误
+    if (error !== 'cancel') {
+      ElMessage.error('退出登录失败')
+    }
   }
 }
 </script>
@@ -438,4 +461,4 @@ const logout = () => {
   margin-bottom: 20px;
   font-size: 18px;
 }
-</style>    
+</style>

@@ -7,12 +7,7 @@
           <el-input v-model="loginForm.username" placeholder="请输入用户名" />
         </el-form-item>
         <el-form-item label="密码" prop="password">
-          <el-input 
-            v-model="loginForm.password" 
-            type="password" 
-            placeholder="请输入密码" 
-            @keyup.enter="handleLogin"
-          />
+          <el-input v-model="loginForm.password" type="password" placeholder="请输入密码" @keyup.enter="handleLogin" />
         </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="handleLogin" :loading="loading" class="login-btn">
@@ -20,13 +15,8 @@
           </el-button>
         </el-form-item>
       </el-form>
-      
-      <div class="demo-accounts">
-        <h4>演示账号:</h4>
-        <p>用户名: user1, 密码: 123456</p>
-        <p>用户名: user2, 密码: 123456</p>
-        <p>用户名: test, 密码: 123456</p>
-      </div>
+
+
     </div>
   </div>
 </template>
@@ -58,19 +48,19 @@ const rules = {
 
 const handleLogin = async () => {
   if (!loginFormRef.value) return
-  
+
   await loginFormRef.value.validate(async (valid) => {
     if (valid) {
       loading.value = true
       try {
         const userInfo = await authApi.login(loginForm.username, loginForm.password)
-        
+
         // 保存用户信息到localStorage
         localStorage.setItem('userInfo', JSON.stringify(userInfo))
         localStorage.setItem('token', userInfo.token)
-        
+
         ElMessage.success('登录成功！')
-        
+
         // 跳转到首页
         router.push('/')
       } catch (error) {
