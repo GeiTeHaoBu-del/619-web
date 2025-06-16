@@ -1,13 +1,13 @@
 <template>
   <div class="home-container">
     <Navbar />
-    
+
     <el-carousel height="400px">
       <el-carousel-item v-for="(item, index) in carouselItems" :key="index">
         <img :src="item.imageUrl" alt="轮播图" class="carousel-image" />
       </el-carousel-item>
     </el-carousel>
-    
+
     <el-row class="intro-section" :gutter="20">
       <el-col :span="8" v-for="(card, index) in introCards" :key="index">
         <el-card :body-style="{ padding: '0px' }" class="clickable-card" @click="handleCardClick(card.route)">
@@ -39,20 +39,20 @@ const carouselItems = ref([
 ]);
 
 const introCards = ref([
-  { 
-    title: '论坛交流', 
+  {
+    title: '论坛交流',
     description: '与志同道合的朋友一起交流分享',
     imageUrl: 'https://picsum.photos/400/200?random=10',
     route: '/forum'
   },
-  { 
-    title: '学习摄影', 
+  {
+    title: '学习摄影',
     description: '浏览各类精美摄影图片',
     imageUrl: 'https://picsum.photos/400/200?random=11',
     route: '/learning'
   },
-  { 
-    title: '精选商城', 
+  {
+    title: '精选商城',
     description: '各种优质商品等你来选',
     imageUrl: 'https://picsum.photos/400/200?random=12',
     route: '/mall'
