@@ -13,7 +13,7 @@
         <el-dropdown @command="handleCommand">
           <span class="el-dropdown-link">
             <el-avatar :src="userInfo.avatar" :size="30" />
-            <span class="username">{{ userInfo.nickname }}</span>
+            <span class="username">{{ userInfo.nickname || userInfo.username }}</span>
             <el-icon class="el-icon--right"><arrow-down /></el-icon>
           </span>
           <template #dropdown>
@@ -29,31 +29,73 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowDown } from '@element-plus/icons-vue'
 import { authApi } from '../mock/authData.js'
+import { clearAuthData } from '../router/index.js'
 
 const router = useRouter()
 const route = useRoute()
 const activeMenu = ref('home')
 const userInfo = ref({
   nickname: '',
+  username: '',
   avatar: ''
 })
+
+// 监听路由变化，更新活动菜单
+watch(() => route.name, (newName) => {
+  if (newName) {
+    activeMenu.value = newName
+  }
+}, { immediate: true })
 
 // 初始化时根据当前路由设置活动菜单
 onMounted(() => {
   activeMenu.value = route.name || 'home'
   loadUserInfo()
+  
+  // 检查token有效性
+  checkTokenValidation()
 })
+
+// 检查token有效性
+const checkTokenValidation = async () => {
+  const token = localStorage.getItem('token')
+  const expireTime = localStorage.getItem('tokenExpire')
+  
+  if (token && expireTime) {
+    const now = Date.now()
+    if (now > parseInt(expireTime)) {
+      // token已过期
+      ElMessage.warning('登录已过期，请重新登录')
+      await handleLogout(false)
+      return
+    }
+    
+    // 验证token有效性
+    try {
+      await authApi.verifyToken(token)
+    } catch (error) {
+      ElMessage.error('登录状态异常，请重新登录')
+      await handleLogout(false)
+    }
+  }
+}
 
 // 加载用户信息
 const loadUserInfo = () => {
   const userData = localStorage.getItem('userInfo')
   if (userData) {
-    userInfo.value = JSON.parse(userData)
+    try {
+      userInfo.value = JSON.parse(userData)
+    } catch (error) {
+      console.error('解析用户信息失败:', error)
+      clearAuthData()
+      router.push('/login')
+    }
   }
 }
 
@@ -66,21 +108,29 @@ const handleCommand = async (command) => {
   if (command === 'profile') {
     router.push('/profile')
   } else if (command === 'logout') {
-    try {
+    await handleLogout(true)
+  }
+}
+
+const handleLogout = async (showConfirm = true) => {
+  try {
+    if (showConfirm) {
       await ElMessageBox.confirm('确定要退出登录吗？', '提示', {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
         type: 'warning'
       })
-      
-      await authApi.logout()
-      localStorage.removeItem('token')
-      localStorage.removeItem('userInfo')
-      
-      ElMessage.success('退出登录成功')
-      router.push('/login')
-    } catch (error) {
-      // 用户取消操作
+    }
+    
+    await authApi.logout()
+    clearAuthData()
+    
+    ElMessage.success('退出登录成功')
+    router.push('/login')
+  } catch (error) {
+    // 用户取消操作或其他错误
+    if (error !== 'cancel') {
+      console.error('退出登录失败:', error)
     }
   }
 }
