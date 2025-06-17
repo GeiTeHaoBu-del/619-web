@@ -4,30 +4,42 @@
       <h2>用户登录</h2>
       <el-form :model="loginForm" :rules="rules" ref="loginFormRef" label-width="80px">
         <el-form-item label="用户名" prop="username">
-          <el-input v-model="loginForm.username" placeholder="请输入用户名" />
+          <el-input 
+            v-model="loginForm.username" 
+            placeholder="请输入用户名"
+            :disabled="loading" />
         </el-form-item>
         <el-form-item label="密码" prop="password">
-          <el-input v-model="loginForm.password" type="password" placeholder="请输入密码" @keyup.enter="handleLogin" />
+          <el-input 
+            v-model="loginForm.password" 
+            type="password" 
+            placeholder="请输入密码" 
+            :disabled="loading"
+            @keyup.enter="handleLogin" />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="handleLogin" :loading="loading" class="login-btn">
-            登录
+          <el-button 
+            type="primary" 
+            @click="handleLogin" 
+            :loading="loading" 
+            class="login-btn">
+            {{ loading ? '登录中...' : '登录' }}
           </el-button>
         </el-form-item>
       </el-form>
-
 
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, reactive, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { authApi } from '../mock/authData.js'
 
 const router = useRouter()
+const route = useRoute()
 const loginFormRef = ref()
 const loading = ref(false)
 
@@ -38,13 +50,21 @@ const loginForm = reactive({
 
 const rules = {
   username: [
-    { required: true, message: '请输入用户名', trigger: 'blur' }
+    { required: true, message: '请输入用户名', trigger: 'blur' },
+    { min: 3, message: '用户名长度不能少于3位', trigger: 'blur' }
   ],
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
     { min: 6, message: '密码长度不能少于6位', trigger: 'blur' }
   ]
 }
+
+// 检查是否有重定向参数
+onMounted(() => {
+  if (route.query.redirect) {
+    ElMessage.info('请先登录后再访问该页面')
+  }
+})
 
 const handleLogin = async () => {
   if (!loginFormRef.value) return
@@ -58,16 +78,25 @@ const handleLogin = async () => {
         // 保存用户信息到localStorage
         localStorage.setItem('userInfo', JSON.stringify(userInfo))
         localStorage.setItem('token', userInfo.token)
+        
+        // 设置token过期时间（24小时）
+        const expireTime = Date.now() + 24 * 60 * 60 * 1000
+        localStorage.setItem('tokenExpire', expireTime.toString())
 
         ElMessage.success('登录成功！')
 
-        // 跳转到首页
-        router.push('/')
+        // 获取重定向路径，如果没有则跳转到首页
+        const redirectPath = route.query.redirect || '/'
+        router.push(redirectPath)
       } catch (error) {
-        ElMessage.error(error.message || '登录失败')
+        ElMessage.error(error.message || '登录失败，请检查用户名和密码')
+        // 清空密码字段
+        loginForm.password = ''
       } finally {
         loading.value = false
       }
+    } else {
+      ElMessage.warning('请检查输入信息')
     }
   })
 }
